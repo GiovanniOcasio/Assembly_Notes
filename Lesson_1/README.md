@@ -22,7 +22,7 @@ An instruction can use at most one memory operand. To combine two values that ar
 
 Registers are faster than memory and where the CPU keeps values it is working with.
 
-| Step | What Happens | Exaample |
+| Step | What Happens | Example |
 |------|--------------|----------|
 | LOAD | Copy data from memory into a register | move rax, [count] 
 | WORK | Do something with the register | add rax |
