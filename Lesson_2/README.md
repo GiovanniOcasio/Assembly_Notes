@@ -364,3 +364,187 @@ Challenge:
     ret
 ```
 
+---
+## Array Offset
+
+An array offser is the number if bytes you need to jump forward from the start of an array to reach a specific item.
+
+If four input numbers are stored in an qword array of values we can select which to load into rax byt specifying the byte value associated with the value.
+
+* 0 = first element
+* 8 = second element
+* 16 = third element
+* 24 = fourth element
+
+```
+    mov rax, [values + 16]
+    ret
+```
+
+In the following scenario, we will be subtracting the first element from the last element:
+```
+    mov rcx, [values + 0]
+    mov rax, [values + 24]
+    sub rax, rcx
+    ret
+```
+
+---
+## Index Addressing
+
+
+Indexed addressing is a way in assembly language to find a memory location by combining a starting address with an index number.
+
+In the example below we give the rcx a value, we use that value to specify which element we want to use. We also use (* 8) to specify that each item in values is 8 bytes wide.
+
+```
+mov rcx, 2 ; 0 = first element, 1 = second element, 2 = third element, 3 = fourth element
+mov rax, [values + rcx * 8]
+```
+
+---
+## Traversing an Array
+
+Traversing an array in assembly means using a loop and memory addressing to read or modify every element one by one.
+
+For example, below is a block that will iterate through every byte of data in a register and determine the xor value of it:
+```
+xor loop:
+    xor rdx, 0
+.next_byte:
+    cmp rdx, rcx    ; Compares rdx value to rcx value (Length of the payload)
+    jge .done   ; Once rdx value is equivalent to rcx (All bytes in rcx have been looped through) it will jump to done
+    xor byte [rsi + rdx], bl    ; Grabs the single byte in memory starting with 0 or the first character in the payload
+    inc rdx     ; Increases rdx so that on next loop iteration the next character is grabbed.
+    jmp .next_byte
+.done:
+ret 
+```
+
+---
+## Finding Extremes
+
+Extremes refer to finding the maximum and minimum signed value that a register can hold.
+
+```
+    mov rax, [values]
+    mov rcx, 1
+.loop:
+    cmp rcx, 4
+    jae .done
+    mov rbx, [values + rcx * 8]
+    cmp rbx, rax
+    jle .next
+    mov rax, rbx
+.next:
+    inc rcx
+    jmp .loop
+.done:
+```
+
+```
+    mov rax, [values]
+    mov rcx, 1
+.loop:
+    cmp rcx, 4
+    jae .finish ; This will close out the loop once the loop counter reaches 4
+    mov rbx, [values + rcx * 8] ; Fetches the next 64 bit integer and stores in RBX
+    cmp rbx, rax    ; Compares the newly set rbx to the current rax minimum
+    jge .next   ; Jump if Greater than or Equal. if the RBX is greater than the current RAX value it jumps to .next
+    mov rax, rbx ; If RBX is less than RAX we move that value into RBX
+.next:
+    inc rcx ; If RBX was greater than the RAX we'll increase the rcx by 1 increasing our loop counter
+    jmp .loop   ; Jumping back into the loop
+.finish:
+    cmp rax, 0  ; When the loop counter reaches four we'll compare the RAX to 0
+    jl .below   ; If the RAX is less than 0 Jump to the .below
+    mov rax, 0  ; If the RAX is greater than 0 mov 0 into the RAX and jump to .done
+    jmp .done
+.below:
+    mov rbx, 0 ; If the RAX was 0, we'd jump here and mov 0 into the RBX
+    sub rbx, rax    ; Next we would subtract RBX from the RAX and store that value in rbx
+    mov rax, rbx    ; Lastly we would mov the RBX value into RAX to output
+.done:
+ret
+```
+
+**STOCK REORDER CHALLENGE:**
+
+Task: Four nonnegative stock counts arrive in array values, each at most 100. A shelf needs a reorder when its stock is below 5. Return the number of shelves needing a reorder.
+Values[4, 5, 0, 9]
+
+```
+    mov rax, 0
+    mov rcx, 0
+.loop:
+    cmp rcx, 4
+    jae .done
+    mov rbx, [values + rcx * 8]
+    cmp rbx, 5
+    jl .next
+    inc rcx
+    jmp .loop
+.next:
+    inc rax
+    inc rcx
+    jmp .loop
+.done:
+    ret
+```
+
+**Odd Value Total**
+
+Task: Sum the odd values in the four-input array values.
+```
+mov rax, 0
+    mov rcx, 0
+.loop:
+    cmp rcx, 4
+    jae .done
+    mov rbx, [values + rcx * 8]
+    test rbx, 1 ; Checks the last bit of the value binary. Even numbers last bit is 0 and odd numbers last bit is 1
+    jz .skip    ; Jump if Zero (ZF = 0) Even numbers will set ZF = 1, odd numbers will set ZF = 0
+    add rax, rbx
+    inc rcx
+    jmp .loop
+.skip:
+    inc rcx
+    jmp .loop
+.done
+    ret
+```
+
+**Range of Reading**
+
+Task: Four signed readings arrive in array values, each between -100 and 100. Return the largest reading minus the smallest reading.
+```
+    mov rax, [values]           ; Initialize rax with first element (tracks smallest)
+    mov rdx, [values]           ; Initialize rdx with first element (tracks largest)
+    mov rcx, 1                  ; Start loop index at 1
+
+.loop:
+    cmp rcx, 4                  ; Check if we reached the end of the 4-element array
+    jae .done                   ; If rcx >= 4, exit the loop
+
+    mov rbx, [values + rcx * 8] ; Load current element into rbx
+
+    ; --- Check for Smallest ---
+    cmp rbx, rax                ; Compare current element (rbx) with current min (rax)
+    jge .check_max              ; If rbx >= rax, it's not smaller; skip updating min
+    mov rax, rbx                ; Otherwise, update rax with the new smallest value
+
+.check_max:
+    ; --- Check for Largest ---
+    cmp rbx, rdx                ; Compare current element (rbx) with current max (rdx)
+    jle .next                   ; If rbx <= rdx, it's not larger; skip updating max
+    mov rdx, rbx                ; Otherwise, update rdx with the new largest value
+
+.next:
+    inc rcx                     ; Move to the next array index
+    jmp .loop                   ; Repeat loop
+
+.done:
+    sub rax, rdx                ; Compute (smallest - largest) and store result in rax
+    ret                         ; Return with final result in rax
+
+```
